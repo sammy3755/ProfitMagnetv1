@@ -1,10 +1,11 @@
 # server.py
-# Advanced Telegram Signal Server + FastAPI (Optimized)
+# PRODUCTION-READY Telegram Signal Server ⚡
 
 from fastapi import FastAPI
 from pydantic import BaseModel
 import time
 import threading
+import os
 from typing import Dict
 
 from telegram import Update
@@ -13,7 +14,6 @@ from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTyp
 # ================= FASTAPI SETUP =================
 app = FastAPI(title="Telegram Signal Server ⚡")
 
-# Store multiple symbols safely
 signals: Dict[str, dict] = {}
 
 # ================= SIGNAL MODEL =================
@@ -25,7 +25,6 @@ class Signal(BaseModel):
 
 # ================= API ROUTES =================
 
-# ✅ NEW: Homepage (no more 404)
 @app.get("/")
 def home():
     return {
@@ -34,7 +33,6 @@ def home():
         "active_symbols": list(signals.keys())
     }
 
-# ✅ IMPROVED: Always returns full structure
 @app.get("/signal")
 def get_signal(symbol: str):
     symbol = symbol.upper()
@@ -50,12 +48,10 @@ def get_signal(symbol: str):
 
     return signals[symbol]
 
-# ✅ NEW: Get all active signals
 @app.get("/signals")
 def get_all_signals():
     return signals
 
-# ✅ IMPROVED: Manual signal set (for testing)
 @app.post("/set")
 def set_signal(signal: Signal):
     symbol = signal.symbol.upper()
@@ -73,13 +69,13 @@ def set_signal(signal: Signal):
 
 # ================= TELEGRAM BOT =================
 
-BOT_TOKEN = "8789273409:AAGf_BeUBNQ8JjCtphN7zszCc_2oNGM3fx4"
-AUTHORIZED_USERS = [8570966290]  # ✅ NEW: Multiple users allowed
+# 🔐 USE ENV VARIABLES (IMPORTANT FOR HOSTING)
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+AUTHORIZED_USERS = [int(x) for x in os.getenv("AUTHORIZED_USERS", "").split(",") if x]
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
 
-    # ✅ NEW: Multi-user authentication
     if user_id not in AUTHORIZED_USERS:
         await update.message.reply_text("❌ Unauthorized user")
         return
@@ -101,7 +97,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sl = 0
     tp = 0
 
-    # ✅ IMPROVED: Safe SL/TP parsing
     for part in parts[2:]:
         try:
             if "SL=" in part:
@@ -121,27 +116,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     print(f"🔥 Telegram Signal: {signals[symbol]}")
 
-    await update.message.reply_text(
-        f"✅ {action} {symbol}\nSL={sl} TP={tp}"
-    )
+    await update.message.reply_text(f"✅ {action} {symbol}\nSL={sl} TP={tp}")
 
-# ================= TELEGRAM THREAD =================
+# ================= TELEGRAM START =================
 
 def run_telegram():
+    if not BOT_TOKEN:
+        print("❌ BOT_TOKEN not set")
+        return
+
     app_telegram = ApplicationBuilder().token(BOT_TOKEN).build()
     app_telegram.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print("🤖 Telegram bot running safely...")
+    print("🤖 Telegram bot running...")
     app_telegram.run_polling()
 
-# ✅ NEW: Safe thread start (prevents duplicate bot issues)
-telegram_thread = threading.Thread(target=run_telegram, daemon=True)
-telegram_thread.start()
+# ✅ START TELEGRAM SAFELY (FOR HOSTING)
+@app.on_event("startup")
+async def startup_event():
+    threading.Thread(target=run_telegram, daemon=True).start()
 
 # ================= MAIN =================
 
 if __name__ == "__main__":
     import uvicorn
 
-    print("⚡ FastAPI server running on http://127.0.0.1:8000")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))  # ✅ dynamic port
+
+    print(f"⚡ Server running on port {port}")
+    uvicorn.run(app, host="0.0.0.0", port=port)
