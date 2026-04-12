@@ -69,9 +69,10 @@ def set_signal(signal: Signal):
 
 # ================= TELEGRAM BOT =================
 
-# 🔐 USE ENV VARIABLES (IMPORTANT FOR HOSTING)
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 AUTHORIZED_USERS = [int(x) for x in os.getenv("AUTHORIZED_USERS", "").split(",") if x]
+
+telegram_app = None
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
@@ -89,10 +90,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     action = parts[0]
     symbol = parts[1]
-
-    if action not in ["BUY", "SELL", "CLOSE"]:
-        await update.message.reply_text("❌ Use BUY / SELL / CLOSE")
-        return
 
     sl = 0
     tp = 0
@@ -114,30 +111,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "id": int(time.time())
     }
 
-    print(f"🔥 Telegram Signal: {signals[symbol]}")
+    await update.message.reply_text(f"✅ {action} {symbol} received")
 
-    await update.message.reply_text(f"✅ {action} {symbol}\nSL={sl} TP={tp}")
 
-# ================= TELEGRAM START =================
+# ================= START BOT PROPERLY =================
 
-def run_telegram():
-    if not BOT_TOKEN:
-        print("❌ BOT_TOKEN not set")
-        return
+async def start_telegram():
+    global telegram_app
 
-    app_telegram = ApplicationBuilder().token(BOT_TOKEN).build()
-    app_telegram.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    telegram_app = ApplicationBuilder().token(BOT_TOKEN).build()
+    telegram_app.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+    )
 
-    print("🤖 Telegram bot running...")
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(app_telegram.run_polling())
+    await telegram_app.initialize()
+    await telegram_app.start()
+    await telegram_app.updater.start_polling()
 
-# ✅ START TELEGRAM SAFELY (FOR HOSTING)
 @app.on_event("startup")
-async def startup_event():
-    threading.Thread(target=run_telegram, daemon=True).start()
-
+async def startup():
+    asyncio.create_task(start_telegram())
 # ================= MAIN =================
 
 if __name__ == "__main__":
