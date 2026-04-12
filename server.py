@@ -70,7 +70,14 @@ def set_signal(signal: Signal):
 # ================= TELEGRAM BOT =================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-AUTHORIZED_USERS = [int(x) for x in os.getenv("AUTHORIZED_USERS", "").split(",") if x]
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN not set in environment variables")
+    
+raw_users = os.getenv("AUTHORIZED_USERS", "")
+
+AUTHORIZED_USERS = (
+    [int(x) for x in raw_users.split(",") if x.strip().isdigit()]
+    if raw_users else [])
 
 telegram_app = None
 
