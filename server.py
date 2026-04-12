@@ -1,6 +1,6 @@
 # server.py
 # PRODUCTION-READY Telegram Signal Server ⚡
-
+import asyncio
 from fastapi import FastAPI
 from pydantic import BaseModel
 import time
@@ -129,7 +129,9 @@ def run_telegram():
     app_telegram.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("🤖 Telegram bot running...")
-    app_telegram.run_polling()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(app_telegram.run_polling())
 
 # ✅ START TELEGRAM SAFELY (FOR HOSTING)
 @app.on_event("startup")
