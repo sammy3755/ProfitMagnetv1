@@ -34,7 +34,7 @@ def home():
         "active_symbols": list(signals.keys())
     }
 
-@app.get("/signal")
+@app.get("/core")
 def get_signal(symbol: str):
     symbol = normalize_symbol(symbol)
 
